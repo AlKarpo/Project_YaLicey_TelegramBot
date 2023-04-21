@@ -9,12 +9,16 @@ from data.results import User
 
 parser = YandexImage()
 
+"""Переменные для работы 3 основных функций бота"""
+
 quest = False
 place = False
 test = False
 i = 0
 id_check = []
 result_check = []
+
+"""Клавиатуры для бота"""
 
 mark = {"0": 'крайне скудные', "1": 'крайне скудные', "2": 'недостаточные', "3": 'недостаточные', "5": 'неплохие',
         "4": 'удовлетворительные', "6": 'неплохие', "7": 'хорошие', "8": 'хорошие', "9": 'отличные', "10": 'отличные'}
@@ -27,6 +31,8 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+"""Клавиатуры для бота"""
 
 markup = ReplyKeyboardMarkup([['❓ Поиск информации', '🌄 Найди фото'],
                               ['📕 Викторина']], resize_keyboard=True, one_time_keyboard=True)
@@ -51,6 +57,7 @@ reply_answer = ReplyKeyboardMarkup([['1', '2', '3']], resize_keyboard=True,
 
 
 async def start(update, context):
+    """Стартовая функция"""
     await update.message.reply_text(
         "Привет. Это ваш путеводитель в мире истории."
         " Я расскажу о прошлом человечества, только попросите.\n"
@@ -61,11 +68,13 @@ async def start(update, context):
 
 
 async def search_answer(question):
+    """Функция делает поиск на Вики по запросу"""
     wiki_wiki = wikipediaapi.Wikipedia('ru')
     page_py = wiki_wiki.page(question)
 
 
 async def ask_question(update, context):
+    """Функция, обрабатывающая главную клавиатуру"""
     global quest, place, test, key
     if update.message.text == "❓ Поиск информации":
         chat_id = update.message.chat_id
@@ -80,6 +89,9 @@ async def ask_question(update, context):
 
 
 async def comands(update, context):
+    """Один из главных обработчиков бота
+    Здесь через условного оператора выполняются основные куски кода каждой функии бота
+    """
     global page_py, b, list_of_photos
     if quest:
         search = update.message.text
@@ -118,6 +130,7 @@ async def comands(update, context):
 
 
 async def printing(update, context):
+    """Дополнительная функция для бота-поисковика, сохраняющая текст с википедии в txt файле"""
     if update.message.text == '📎 Сохранить':
         with open(f'{page_py.title}.txt', 'w', encoding='utf-8') as f:
             f.write(page_py.title + '\n')
@@ -135,6 +148,7 @@ async def printing(update, context):
 
 
 async def act_photos(update, context):
+    """Функция, которая запрашивает 10 дополнительных фото по данному запросу и отправляет их по необходимости"""
     global i
     try:
         if update.message.text == '💾 Ещё фото':
@@ -152,6 +166,7 @@ async def act_photos(update, context):
 
 
 async def choosing(update, context):
+    """Вспомогательная функция, которая выбирает категорию поиска для фото"""
     global key
     key = ''
     if update.message.text == '🎖 Историческая личность':
@@ -167,6 +182,7 @@ async def choosing(update, context):
 
 
 async def print_answer(update, context, i):
+    """Функция для отправки вопроса и вариантов ответы в викторине"""
     if i < 10:
         await update.message.reply_text(f'{data["name"][name_event]["id"][str(i + 1)]["question"]}')
         await update.message.reply_text(f'Варианты ответа:\n'
@@ -182,7 +198,8 @@ async def test_choose(update, context):
     i += 1
 
 
-async def star(update, context):
+async def start_dialog(update, context):
+    """Функция-обработчик темы викторины"""
     global answer, key, name_event
     answer = []
     key = update.message.text
@@ -198,7 +215,8 @@ async def star(update, context):
     return 1
 
 
-async def first_response(update, context):
+async def responser(update, context):
+    """Функция, записывающая правильные ответы и в заносящая результаты в БД в конце викторины"""
     global i
     otvet = update.message.text
     if otvet == data["name"][name_event]["id"][str(i)]["answer"]:
@@ -235,7 +253,7 @@ async def first_response(update, context):
 
 
 async def stop(update, context):
-    await update.message.reply_text("Всего доброго!")
+    await update.message.reply_text("Остановка теста")
     return ConversationHandler.END
 
 
@@ -245,6 +263,7 @@ async def help(update, context):
 
 
 async def compare(update, context, user, maxi, name):
+    """Определение лидера по очкам"""
     if user.result > maxi:
         maxi = user.result
         name = user.name
@@ -252,6 +271,7 @@ async def compare(update, context, user, maxi, name):
 
 
 async def find_leader(update, context):
+    """Функция записывает лидеров в БД"""
     maxi_nap, maxi_us, maxi_petr = {'name': '', 'points': 0}, {'name': '', 'points': 0}, {'name': '', 'points': 0}
     db_session.global_init("db/results.db")
     db_sess = db_session.create_session()
@@ -291,18 +311,18 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[
             MessageHandler(filters.Regex("^(⚔ Война 1812г.|⚓ Эпоха Петра I|🗞 СССР 1960-1980х гг|🔙 Вернуться назад)$"),
-                           star, block=True)],
+                           start_dialog, block=True)],
         states={
-            1: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)],
-            2: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)],
-            3: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)],
-            4: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)],
-            5: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)],
-            6: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)],
-            7: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)],
-            8: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)],
-            9: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)],
-            10: [MessageHandler(filters.Regex("^(1|2|3)$"), first_response, block=True)]
+            1: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)],
+            2: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)],
+            3: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)],
+            4: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)],
+            5: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)],
+            6: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)],
+            7: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)],
+            8: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)],
+            9: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)],
+            10: [MessageHandler(filters.Regex("^(1|2|3)$"), responser, block=True)]
         },
         fallbacks=[CommandHandler('stop', stop)]
     )
